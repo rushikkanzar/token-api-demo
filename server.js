@@ -56,7 +56,7 @@ app.get('/', (req, res) => {
   res.type('html').send(`
     <h2>Token API</h2>
     <p>POST /login -> returns plain-text token</p>
-    <p>GET /userinfo?phone=+123... -> requires header: Authorization: Bearer &lt;token&gt;</p>
+    <p>POST /userinfo -> requires header: Authorization: Bearer &lt;token&gt; and JSON body { "phone": "+123..." }</p>
   `);
 });
 
@@ -74,8 +74,8 @@ app.post('/login', (req, res) => {
   res.type('text/plain').send(token);
 });
 
-// GET /userinfo?phone=... -> requires Authorization Bearer <token>
-app.get('/userinfo', (req, res) => {
+// POST /userinfo -> requires Authorization Bearer <token>, phone in JSON body
+app.post('/userinfo', (req, res) => {
   const auth = (req.get('authorization') || '');
   if (!auth.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Missing Bearer token' });
@@ -83,13 +83,19 @@ app.get('/userinfo', (req, res) => {
 
   const token = auth.split(' ')[1];
   const expiry = tokens.get(token);
-  if (!expiry || expiry < Date.now()) return res.status(401).json({ error: 'Invalid or expired token' });
+  if (!expiry || expiry < Date.now()) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
 
-  const phone = req.query.phone;
-  if (!phone) return res.status(400).json({ error: 'phone query parameter required' });
+  const { phone } = req.body;
+  if (!phone) {
+    return res.status(400).json({ error: 'phone field required in body' });
+  }
 
   const user = sampleUsers[phone];
-  if (!user) return res.status(404).json({ error: 'No user found for that phone' });
+  if (!user) {
+    return res.status(404).json({ error: 'No user found for that phone' });
+  }
 
   res.json(user);
 });
